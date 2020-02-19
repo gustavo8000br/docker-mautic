@@ -1,4 +1,4 @@
-FROM armhf/php-7.2-apache
+FROM arm32v7/php-7.2-apache
 
 LABEL vendor="Mautic"
 LABEL maintainer="Luiz Eduardo Oliveira Fonseca <luiz@powertic.com>"

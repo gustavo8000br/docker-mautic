@@ -1,4 +1,4 @@
-FROM aarch64/php-7.1-fpm
+FROM armv64v8/php-7.1-fpm
 
 LABEL vendor="Mautic"
 LABEL maintainer="Luiz Eduardo Oliveira Fonseca <luiz@powertic.com>"
