@@ -21,10 +21,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/cron.daily/*
 
-RUN docker-php-ext-configure imap --with-imap --with-imap-ssl --with-kerberos \
+RUN pecl install mcrypt \
+    && docker-php-ext-enable mcrypt.so \
+    && docker-php-ext-configure imap --with-imap --with-imap-ssl --with-kerberos \
     && docker-php-ext-configure opcache --enable-opcache \
-    && docker-php-ext-install imap intl mbstring mcrypt mysqli pdo_mysql zip opcache bcmath \
-    && docker-php-ext-enable imap intl mbstring mcrypt mysqli pdo_mysql zip opcache bcmath
+    && docker-php-ext-install imap intl mbstring mysqli pdo_mysql zip opcache bcmath \
+    && docker-php-ext-enable imap intl mbstring mysqli pdo_mysql zip opcache bcmath
 
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
@@ -46,7 +48,8 @@ ENV PHP_INI_DATE_TIMEZONE='UTC' \
 	PHP_MAX_EXECUTION_TIME=300
 
 # Download package and extract to web volume
-RUN if [ -z ${MAUTIC_VERSION+x} ]; then \
+RUN echo "**** install mautic ****" && \
+    if [ -z ${MAUTIC_VERSION+x} ]; then \
 	MAUTIC_VERSION=$(curl -sX GET "https://api.github.com/repos/mautic/mautic/releases/latest" \
 	| awk '/tag_name/{print $4;exit}' FS='[""]'); \
     fi && \
@@ -54,7 +57,9 @@ RUN if [ -z ${MAUTIC_VERSION+x} ]; then \
 	&& mkdir /usr/src/mautic \
 	&& unzip mautic.zip -d /usr/src/mautic \
 	&& rm mautic.zip \
-	&& chown -R www-data:www-data /usr/src/mautic
+	&& chown -R www-data:www-data /usr/src/mautic \
+    && echo "**** clean up ****" \
+	&& rm mautic.zip 
 
 # Copy init scripts and custom .htaccess
 COPY docker-entrypoint.sh /entrypoint.sh
