@@ -142,7 +142,7 @@ pipeline {
       }
       steps {
         sh "docker build --no-cache --pull -t ${IMAGE}:${META_TAG} \
-        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
+        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
       }
     }
     // Build MultiArch Docker containers for push to LS Repo
@@ -155,7 +155,7 @@ pipeline {
         stage('Build X86') {
           steps {
             sh "docker build --no-cache --pull -t ${IMAGE}:amd64-beta-fpm-${META_TAG} \
-            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
+            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
           }
         }
         stage('Build ARMHF') {
@@ -176,7 +176,7 @@ pipeline {
                  echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                  '''
               sh "docker build --no-cache --pull -f Dockerfile.armhf -t ${IMAGE}:arm32v7-beta-fpm-${META_TAG} \
-                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
+                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
               sh "docker tag ${IMAGE}:arm32v7-beta-fpm-${META_TAG} $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh "docker push $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh '''docker rmi \
