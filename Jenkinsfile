@@ -6,11 +6,12 @@ pipeline {
   environment {
     BUILDS_DISCORD=credentials('build_webhook_url')
     GITHUB_TOKEN=credentials('498b4638-2d04-4ce5-832d-8a57d01d97ac')
-    EXT_USER = 'gustavo8000br'
-    EXT_REPO = 'docker-mautic'
+    EXT_USER = 'mautic'
+    EXT_REPO = 'mautic'
+    EXT_VERSION_TYPE = 'apache'
     CONTAINER_NAME = 'docker-mautic'
-    LS_USER = 'gustavo8000br'
-    LS_REPO = 'docker-mautic'
+    MY_USER = 'gustavo8000br'
+    MY_REPO = 'docker-mautic'
     DOCKERHUB_IMAGE = 'gustavo8000br/docker-mautic'
     DIST_IMAGE = 'ubuntu'
     MULTIARCH='true'
@@ -22,8 +23,8 @@ pipeline {
       steps{
         script{
           env.EXIT_STATUS = ''
-          env.LS_RELEASE = sh(
-            script: '''docker run --rm alexeiled/skopeo sh -c 'skopeo inspect docker://docker.io/'${DOCKERHUB_IMAGE}':latest 2>/dev/null' | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-ls' || : ''',
+          env.MY_RELEASE = sh(
+            script: '''docker run --rm alexeiled/skopeo sh -c 'skopeo inspect docker://docker.io/'${DOCKERHUB_IMAGE}':latest 2>/dev/null' | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-build-' || : ''',
             returnStdout: true).trim()
           env.GITHUB_DATE = sh(
             script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
@@ -31,7 +32,7 @@ pipeline {
           env.COMMIT_SHA = sh(
             script: '''git rev-parse HEAD''',
             returnStdout: true).trim()
-          env.CODE_URL = 'https://github.com/' + env.LS_USER + '/' + env.LS_REPO + '/commit/' + env.GIT_COMMIT
+          env.CODE_URL = 'https://github.com/' + env.MY_USER + '/' + env.MY_REPO + '/commit/' + env.GIT_COMMIT
           env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DOCKERHUB_IMAGE + '/tags/'
           env.PULL_REQUEST = env.CHANGE_ID
           env.LICENSE_TAG = sh(
@@ -44,20 +45,20 @@ pipeline {
             returnStdout: true).trim()
         }
         script{
-          env.LS_RELEASE_NUMBER = sh(
-            script: '''echo ${LS_RELEASE} |sed 's/^.*-ls//g' ''',
+          env.MY_RELEASE_NUMBER = sh(
+            script: '''echo ${MY_RELEASE} |sed 's/^.*-build-//g' ''',
             returnStdout: true).trim()
         }
         script{
-          env.LS_TAG_NUMBER = sh(
+          env.MY_TAG_NUMBER = sh(
             script: '''#! /bin/bash
-                       tagsha=$(git rev-list -n 1 ${LS_RELEASE} 2>/dev/null)
+                       tagsha=$(git rev-list -n 1 ${MY_RELEASE} 2>/dev/null)
                        if [ "${tagsha}" == "${COMMIT_SHA}" ]; then
-                         echo ${LS_RELEASE_NUMBER}
+                         echo ${MY_RELEASE_NUMBER}
                        elif [ -z "${GIT_COMMIT}" ]; then
-                         echo ${LS_RELEASE_NUMBER}
+                         echo ${MY_RELEASE_NUMBER}
                        else
-                         echo $((${LS_RELEASE_NUMBER} + 1))
+                         echo $((${MY_RELEASE_NUMBER} + 1))
                        fi''',
             returnStdout: true).trim()
         }
@@ -94,38 +95,28 @@ pipeline {
         }
       }
     }
-    // If this is a master build use live docker endpoints
+    // If this is a apache build use live docker endpoints
     stage("Set ENV live build"){
       when {
-        branch "master"
+        branch "apache"
         environment name: 'CHANGE_ID', value: ''
       }
       steps {
         script{
           env.IMAGE = env.DOCKERHUB_IMAGE
-          if (env.MULTIARCH == 'true') {
-            env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm32v7-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-          } else {
-            env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
-          }
-          env.META_TAG = env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+          env.META_TAG = env.EXT_RELEASE_CLEAN + '-build-' + env.MY_TAG_NUMBER
         }
       }
     }
     // If this is a dev build use dev docker endpoints
     stage("Set ENV dev build"){
       when {
-        not {branch "master"}
+        not {branch "apache"}
         environment name: 'CHANGE_ID', value: ''
       }
       steps {
         script{
           env.IMAGE = env.DEV_DOCKERHUB_IMAGE
-          if (env.MULTIARCH == 'true') {
-            env.CI_TAGS = 'amd64-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm32v7-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA + '|arm64v8-' + env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
-          } else {
-            env.CI_TAGS = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
-          }
           env.META_TAG = env.EXT_RELEASE_CLEAN + '-pkg-' + env.PACKAGE_TAG + '-dev-' + env.COMMIT_SHA
           env.DOCKERHUB_LINK = 'https://hub.docker.com/r/' + env.DEV_DOCKERHUB_IMAGE + '/tags/'
         }
@@ -142,7 +133,7 @@ pipeline {
       }
       steps {
         sh "docker build --no-cache --pull -t ${IMAGE}:${META_TAG} \
-        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
+        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} '${EXT_VERSION_TYPE}'"
       }
     }
     // Build MultiArch Docker containers for push to LS Repo
@@ -154,8 +145,8 @@ pipeline {
       parallel {
         stage('Build X86') {
           steps {
-            sh "docker build --no-cache --pull -t ${IMAGE}:amd64-beta-fpm-${META_TAG} \
-            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
+            sh "docker build --no-cache --pull -t ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} \
+            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} '${EXT_VERSION_TYPE}'"
           }
         }
         stage('Build ARMHF') {
@@ -175,13 +166,13 @@ pipeline {
               sh '''#! /bin/bash
                  echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                  '''
-              sh "docker build --no-cache --pull -f Dockerfile.armhf -t ${IMAGE}:arm32v7-beta-fpm-${META_TAG} \
-                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
-              sh "docker tag ${IMAGE}:arm32v7-beta-fpm-${META_TAG} $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
-              sh "docker push $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
+              sh "docker build --no-cache --pull -f Dockerfile.armhf -t ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} \
+                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} '${EXT_VERSION_TYPE}'"
+              sh "docker tag ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
+              sh "docker push $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh '''docker rmi \
-                    ${IMAGE}:arm32v7-beta-fpm-${META_TAG} \
-                    $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
+                    ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} \
+                    $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
             }
           }
         }
@@ -202,13 +193,13 @@ pipeline {
               sh '''#! /bin/bash
                  echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                  '''
-              sh "docker build --no-cache --pull -f Dockerfile.aarch64 -t ${IMAGE}:arm64v8-beta-fpm-${META_TAG} \
-                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} 'beta-fpm'"
-              sh "docker tag ${IMAGE}:arm64v8-beta-fpm-${META_TAG} $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
-              sh "docker push $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}"
+              sh "docker build --no-cache --pull -f Dockerfile.aarch64 -t ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} \
+                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} '${EXT_VERSION_TYPE}'"
+              sh "docker tag ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
+              sh "docker push $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh '''docker rmi \
-                    ${IMAGE}:arm64v8-beta-fpm-${META_TAG} \
-                    $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
+                    ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} \
+                    $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
             }
           }
         }
@@ -264,72 +255,69 @@ pipeline {
           sh '''#! /bin/bash
              echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
              '''
-          sh '''#! /bin/bash
-                if [ "${CI}" == "false" ]; then
-                  docker pull $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}
-                  docker pull $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER}
-                  docker tag $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm32v7-beta-fpm-${META_TAG}
-                  docker tag $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-beta-fpm-${META_TAG}
-                fi'''
-          sh "docker tag ${IMAGE}:amd64-beta-fpm-${META_TAG} ${IMAGE}:amd64-beta-fpm-latest"
-          sh "docker tag ${IMAGE}:arm32v7-${META_TAG} ${IMAGE}:arm32v7-beta-fpm-latest"
-          sh "docker tag ${IMAGE}:arm64v8-${META_TAG} ${IMAGE}:arm64v8-beta-fpm-latest"
-          sh "docker push ${IMAGE}:amd64-beta-fpm-${META_TAG}"
-          sh "docker push ${IMAGE}:arm32v7-beta-fpm-${META_TAG}"
-          sh "docker push ${IMAGE}:arm64v8-beta-fpm-${META_TAG}"
-          sh "docker push ${IMAGE}:amd64-beta-fpm-latest"
-          sh "docker push ${IMAGE}:arm32v7-beta-fpm-latest"
-          sh "docker push ${IMAGE}:arm64v8-beta-fpm-latest"
+          sh "docker pull $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
+          sh "docker pull $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
+          sh "docker tag $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker tag $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker tag ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest"
+          sh "docker tag ${IMAGE}:arm32v7-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest"
+          sh "docker tag ${IMAGE}:arm64v8-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
+          sh "docker push ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker push ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker push ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker push ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest"
+          sh "docker push ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest"
+          sh "docker push ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
           sh "docker manifest push --purge ${IMAGE}:latest || :"
-          sh "docker manifest create ${IMAGE}:latest ${IMAGE}:amd64-beta-fpm-latest ${IMAGE}:arm32v7-beta-fpm-latest ${IMAGE}:arm64v8-beta-fpm-latest"
-          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm32v7-beta-fpm-latest --os linux --arch arm"
-          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm64v8-beta-fpm-latest --os linux --arch arm64 --variant v8"
+          sh "docker manifest create ${IMAGE}:latest ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
+          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest --os linux --arch arm"
+          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest --os linux --arch arm64 --variant v8"
           sh "docker manifest push --purge ${IMAGE}:${META_TAG} || :"
-          sh "docker manifest create ${IMAGE}:${META_TAG} ${IMAGE}:amd64-beta-fpm-${META_TAG} ${IMAGE}:arm32v7-beta-fpm-${META_TAG} ${IMAGE}:arm64v8-beta-fpm-${META_TAG}"
-          sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm32v7-beta-fpm-${META_TAG} --os linux --arch arm"
-          sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm64v8-beta-fpm-${META_TAG} --os linux --arch arm64 --variant v8"
+          sh "docker manifest create ${IMAGE}:${META_TAG} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm"
+          sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm64 --variant v8"
           sh "docker manifest push --purge ${IMAGE}:latest"
           sh "docker manifest push --purge ${IMAGE}:${META_TAG}"
           sh '''docker rmi \
-                ${IMAGE}:amd64-beta-fpm-${META_TAG} \
-                ${IMAGE}:amd64-beta-fpm-latest \
-                ${IMAGE}:arm32v7-beta-fpm-${META_TAG} \
-                ${IMAGE}:arm32v7-beta-fpm-latest \
-                ${IMAGE}:arm64v8-beta-fpm-${META_TAG} \
-                ${IMAGE}:arm64v8-beta-fpm-latest \
-                $DOCKERUSER/buildcache:arm32v7-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} \
-                $DOCKERUSER/buildcache:arm64v8-beta-fpm-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
+                ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} \
+                ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest \
+                ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} \
+                ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest \
+                ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} \
+                ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest \
+                $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} \
+                $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} || :'''
         }
       }
     }
     // If this is a public release tag it in the LS Github
     stage('Github-Tag-Push-Release') {
       when {
-        branch "master"
+        branch "apache"
         expression {
-          env.LS_RELEASE != env.EXT_RELEASE_CLEAN + '-ls' + env.LS_TAG_NUMBER
+          env.MY_RELEASE != env.EXT_RELEASE_CLEAN + '-build-' + env.MY_TAG_NUMBER
         }
         environment name: 'CHANGE_ID', value: ''
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        echo "Pushing New tag for current commit ${EXT_RELEASE_CLEAN}-ls${LS_TAG_NUMBER}"
-        sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/git/tags \
-        -d '{"tag":"'${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}'",\
+        echo "Pushing New tag for current commit ${EXT_RELEASE_CLEAN}-build-${MY_TAG_NUMBER}"
+        sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${MY_USER}/${MY_REPO}/git/tags \
+        -d '{"tag":"'${EXT_RELEASE_CLEAN}'-${EXT_VERSION_TYPE}''-build-'${MY_TAG_NUMBER}'",\
              "object": "'${COMMIT_SHA}'",\
-             "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}' to master",\
+             "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-${EXT_VERSION_TYPE}''-build-'${MY_TAG_NUMBER}' to apache",\
              "type": "commit",\
              "tagger": {"name": "Jenkins","email": "gustavo8000@icloud.com","date": "'${GITHUB_DATE}'"}}' '''
         echo "Pushing New release for Tag"
         sh '''#! /bin/bash
               curl -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
-              echo '{"tag_name":"'${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}'",\
-                     "target_commitish": "master",\
-                     "name": "'${EXT_RELEASE_CLEAN}'-ls'${LS_TAG_NUMBER}'",\
-                     "body": "**Changes:**\\n\\n'${LS_RELEASE_NOTES}'\\n**'${EXT_REPO}' Changes:**\\n\\n' > start
+              echo '{"tag_name":"'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
+                     "target_commitish": "apache",\
+                     "name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
+                     "body": "**Changes:**\\n\\n'${MY_RELEASE_NOTES}'\\n**'${EXT_REPO}' Changes:**\\n\\n' > start
               printf '","draft": false,"prerelease": true}' >> releasebody.json
               paste -d'\\0' start releasebody.json > releasebody.json.done
-              curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${LS_USER}/${LS_REPO}/releases -d @releasebody.json.done'''
+              curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${MY_USER}/${MY_REPO}/releases -d @releasebody.json.done'''
       }
     }
   }

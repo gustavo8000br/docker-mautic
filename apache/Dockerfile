@@ -3,6 +3,11 @@ FROM php:7.1-apache
 LABEL vendor="Mautic"
 LABEL maintainer="Luiz Eduardo Oliveira Fonseca <luiz@powertic.com>"
 
+# set version label
+ARG BUILD_DATE
+ARG VERSION
+LABEL build_version="gustavo8000br version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+
 # Install PHP extensions
 RUN apt-get update && apt-get install --no-install-recommends -y \
     cron \
