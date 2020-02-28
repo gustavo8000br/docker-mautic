@@ -133,7 +133,7 @@ pipeline {
       }
       steps {
         sh "docker build --no-cache --pull -t ${IMAGE}:${META_TAG} \
-        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} './${EXT_VERSION_TYPE}'"
+        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
       }
     }
     // Build MultiArch Docker containers for push to LS Repo
@@ -146,7 +146,7 @@ pipeline {
         stage('Build X86') {
           steps {
             sh "docker build --no-cache --pull -t ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} \
-            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} './${EXT_VERSION_TYPE}'"
+            --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
           }
         }
         stage('Build ARMHF') {
@@ -167,7 +167,7 @@ pipeline {
                  echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                  '''
               sh "docker build --no-cache --pull -f Dockerfile.armhf -t ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} \
-                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} './${EXT_VERSION_TYPE}'"
+                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
               sh "docker tag ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh "docker push $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh '''docker rmi \
@@ -194,7 +194,7 @@ pipeline {
                  echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                  '''
               sh "docker build --no-cache --pull -f Dockerfile.aarch64 -t ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} \
-                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} './${EXT_VERSION_TYPE}'"
+                        --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
               sh "docker tag ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh "docker push $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER}"
               sh '''docker rmi \
