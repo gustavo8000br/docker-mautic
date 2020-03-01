@@ -9,13 +9,10 @@ pipeline {
     EXT_USER = 'mautic'
     EXT_REPO = 'mautic'
     EXT_VERSION_TYPE = 'apache'
-    CONTAINER_NAME = 'docker-mautic'
     MY_USER = 'gustavo8000br'
     MY_REPO = 'docker-mautic'
     DOCKERHUB_IMAGE = 'gustavo8000br/docker-mautic'
-    DIST_IMAGE = 'ubuntu'
     MULTIARCH='true'
-	  CI='false'
   }
   stages {
     // Setup all the basic environment variables needed for the build
@@ -260,8 +257,8 @@ pipeline {
           sh "docker tag $DOCKERUSER/buildcache:arm32v7-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG}"
           sh "docker tag $DOCKERUSER/buildcache:arm64v8-${EXT_VERSION_TYPE}-${COMMIT_SHA}-${BUILD_NUMBER} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
           sh "docker tag ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest"
-          sh "docker tag ${IMAGE}:arm32v7-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest"
-          sh "docker tag ${IMAGE}:arm64v8-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
+          sh "docker tag ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest"
+          sh "docker tag ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
           sh "docker push ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG}"
           sh "docker push ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG}"
           sh "docker push ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
@@ -307,15 +304,15 @@ pipeline {
              "object": "'${COMMIT_SHA}'",\
              "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-${EXT_VERSION_TYPE}''-build-'${MY_TAG_NUMBER}' to apache",\
              "type": "commit",\
-             "tagger": {"name": "Jenkins","email": "gustavo8000@icloud.com","date": "'${GITHUB_DATE}'"}}' '''
+             "tagger": {"name": "Jenkins","tag_name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'","email": "gustavo8000@icloud.com","date": "'${GITHUB_DATE}'"}}' '''
         echo "Pushing New release for Tag"
         sh '''#! /bin/bash
               curl -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
-              echo '{"tag_name":"'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
+              echo '{"name":"'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
                      "target_commitish": "apache",\
-                     "name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
+                     "tag_name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
                      "body": "**Changes:**\\n\\n'${MY_RELEASE_NOTES}'\\n**'${EXT_REPO}' Changes:**\\n\\n' > start
-              printf '","draft": false,"prerelease": true}' >> releasebody.json
+              printf '","draft": false,"prerelease": false}' >> releasebody.json
               paste -d'\\0' start releasebody.json > releasebody.json.done
               curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${MY_USER}/${MY_REPO}/releases -d @releasebody.json.done'''
       }

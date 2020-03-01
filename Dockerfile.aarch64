@@ -61,7 +61,6 @@ RUN echo "**** install mautic ****" && \
     curl -o mautic.zip -SL https://github.com/mautic/mautic/releases/download/${MAUTIC_VERSION}/${MAUTIC_VERSION}.zip \
 	&& mkdir /usr/src/mautic \
 	&& unzip mautic.zip -d /usr/src/mautic \
-	&& rm mautic.zip \
 	&& chown -R www-data:www-data /usr/src/mautic \
     && echo "**** clean up ****" \
 	&& rm mautic.zip 
