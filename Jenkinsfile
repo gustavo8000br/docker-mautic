@@ -129,7 +129,7 @@ pipeline {
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        sh "docker build --no-cache --pull -t ${IMAGE}:${META_TAG} \
+        sh "docker build --no-cache --pull -t ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} \
         --build-arg VERSION=\"${META_TAG}\" --build-arg BUILD_DATE=${GITHUB_DATE} ."
       }
     }
@@ -224,11 +224,11 @@ pipeline {
           sh '''#! /bin/bash
              echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
              '''
-          sh "docker tag ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} ${IMAGE}:${EXT_VERSION_TYPE}-latest"
+          sh "docker tag ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:${EXT_VERSION_TYPE}-latest"
           sh "docker push ${IMAGE}:${EXT_VERSION_TYPE}-latest"
-          sh "docker push ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE}"
+          sh "docker push ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG}"
           sh '''docker rmi \
-                ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} \
+                ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} \
                 ${IMAGE}:${EXT_VERSION_TYPE}-latest || :'''
 
         }
@@ -269,12 +269,12 @@ pipeline {
           sh "docker manifest create ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
           sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest --os linux --arch arm"
           sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest --os linux --arch arm64 --variant v8"
-          sh "docker manifest push --purge ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} || :"
-          sh "docker manifest create ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
-          sh "docker manifest annotate ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm"
-          sh "docker manifest annotate ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm64 --variant v8"
+          sh "docker manifest push --purge ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} || :"
+          sh "docker manifest create ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
+          sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm"
+          sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm64 --variant v8"
           sh "docker manifest push --purge ${IMAGE}:${EXT_VERSION_TYPE}-latest"
-          sh "docker manifest push --purge ${IMAGE}:${META_TAG}-${EXT_VERSION_TYPE}"
+          sh "docker manifest push --purge ${IMAGE}:${EXT_VERSION_TYPE}-${META_TAG}"
           sh '''docker rmi \
                 ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} \
                 ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest \
