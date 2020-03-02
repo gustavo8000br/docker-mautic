@@ -55,8 +55,8 @@ ENV PHP_INI_DATE_TIMEZONE='UTC' \
 
 # Download package and extract to web volume
 RUN echo "**** install mautic ****" && \
-    if [ -z ${MAUTIC_VERSION+x} ]; then \
-	MAUTIC_VERSION=$(curl -sX GET "https://api.github.com/repos/mautic/mautic/releases/latest" \
+    if [ -z ${EXT_VERSION+x} ]; then \
+	EXT_VERSION=$(curl -sX GET "https://api.github.com/repos/mautic/mautic/releases/latest" \
 	| awk '/tag_name/{print $4;exit}' FS='[""]'); \
     fi && \
     curl -o mautic.zip -SL https://github.com/mautic/mautic/releases/download/${EXT_VERSION}/${EXT_VERSION}.zip \
