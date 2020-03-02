@@ -298,7 +298,7 @@ pipeline {
         environment name: 'EXIT_STATUS', value: ''
       }
       steps {
-        echo "Pushing New tag for current commit ${EXT_RELEASE_CLEAN}-build-${MY_TAG_NUMBER}"
+        echo "Pushing New tag for current commit ${EXT_RELEASE_CLEAN}-${EXT_VERSION_TYPE}-build-${MY_TAG_NUMBER}"
         sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${MY_USER}/${MY_REPO}/git/tags \
         -d '{"tag":"'${EXT_RELEASE_CLEAN}'-'${EXT_VERSION_TYPE}'-build-'${MY_TAG_NUMBER}'",\
              "object": "'${COMMIT_SHA}'",\
