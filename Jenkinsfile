@@ -21,7 +21,7 @@ pipeline {
         script{
           env.EXIT_STATUS = ''
           env.MY_RELEASE = sh(
-            script: '''docker run --rm alexeiled/skopeo sh -c 'skopeo inspect docker://docker.io/'${DOCKERHUB_IMAGE}':latest 2>/dev/null' | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-build-' || : ''',
+            script: '''docker run --rm alexeiled/skopeo sh -c 'skopeo inspect docker://docker.io/'${DOCKERHUB_IMAGE}':${EXT_VERSION_TYPE}-latest 2>/dev/null' | jq -r '.Labels.build_version' | awk '{print $3}' | grep '\\-build-' || : ''',
             returnStdout: true).trim()
           env.GITHUB_DATE = sh(
             script: '''date '+%Y-%m-%dT%H:%M:%S%:z' ''',
@@ -224,12 +224,12 @@ pipeline {
           sh '''#! /bin/bash
              echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
              '''
-          sh "docker tag ${IMAGE}:${META_TAG} ${IMAGE}:latest"
-          sh "docker push ${IMAGE}:latest"
+          sh "docker tag ${IMAGE}:${META_TAG} ${IMAGE}:${EXT_VERSION_TYPE}-latest"
+          sh "docker push ${IMAGE}:${EXT_VERSION_TYPE}-latest"
           sh "docker push ${IMAGE}:${META_TAG}"
           sh '''docker rmi \
                 ${IMAGE}:${META_TAG} \
-                ${IMAGE}:latest || :'''
+                ${IMAGE}:${EXT_VERSION_TYPE}-latest || :'''
 
         }
       }
@@ -265,15 +265,15 @@ pipeline {
           sh "docker push ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest"
           sh "docker push ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest"
           sh "docker push ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
-          sh "docker manifest push --purge ${IMAGE}:latest || :"
-          sh "docker manifest create ${IMAGE}:latest ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
-          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest --os linux --arch arm"
-          sh "docker manifest annotate ${IMAGE}:latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest --os linux --arch arm64 --variant v8"
+          sh "docker manifest push --purge ${IMAGE}:${EXT_VERSION_TYPE}-latest || :"
+          sh "docker manifest create ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:amd64-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest"
+          sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-latest --os linux --arch arm"
+          sh "docker manifest annotate ${IMAGE}:${EXT_VERSION_TYPE}-latest ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-latest --os linux --arch arm64 --variant v8"
           sh "docker manifest push --purge ${IMAGE}:${META_TAG} || :"
           sh "docker manifest create ${IMAGE}:${META_TAG} ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG}"
           sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm32v7-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm"
           sh "docker manifest annotate ${IMAGE}:${META_TAG} ${IMAGE}:arm64v8-${EXT_VERSION_TYPE}-${META_TAG} --os linux --arch arm64 --variant v8"
-          sh "docker manifest push --purge ${IMAGE}:latest"
+          sh "docker manifest push --purge ${IMAGE}:${EXT_VERSION_TYPE}-latest"
           sh "docker manifest push --purge ${IMAGE}:${META_TAG}"
           sh '''docker rmi \
                 ${IMAGE}:amd64-${EXT_VERSION_TYPE}-${META_TAG} \
@@ -300,9 +300,9 @@ pipeline {
       steps {
         echo "Pushing New tag for current commit ${EXT_RELEASE_CLEAN}-build-${MY_TAG_NUMBER}"
         sh '''curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST https://api.github.com/repos/${MY_USER}/${MY_REPO}/git/tags \
-        -d '{"tag":"'${EXT_RELEASE_CLEAN}'-${EXT_VERSION_TYPE}''-build-'${MY_TAG_NUMBER}'",\
+        -d '{"tag":"'${EXT_RELEASE_CLEAN}'-'${EXT_VERSION_TYPE}'-build-'${MY_TAG_NUMBER}'",\
              "object": "'${COMMIT_SHA}'",\
-             "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-${EXT_VERSION_TYPE}''-build-'${MY_TAG_NUMBER}' to apache",\
+             "message": "Tagging Release '${EXT_RELEASE_CLEAN}'-'${EXT_VERSION_TYPE}'-build-'${MY_TAG_NUMBER}' to apache",\
              "type": "commit",\
              "tagger": {"name": "Jenkins","tag_name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'","email": "gustavo8000@icloud.com","date": "'${GITHUB_DATE}'"}}' '''
         echo "Pushing New release for Tag"
@@ -310,7 +310,7 @@ pipeline {
               curl -s https://api.github.com/repos/${EXT_USER}/${EXT_REPO}/releases/latest | jq '. |.body' | sed 's:^.\\(.*\\).$:\\1:' > releasebody.json
               echo '{"name":"'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
                      "target_commitish": "apache",\
-                     "tag_name": "'${EXT_RELEASE_CLEAN}'-build-'${MY_TAG_NUMBER}'",\
+                     "tag_name": "'${EXT_RELEASE_CLEAN}'-'${EXT_VERSION_TYPE}'-build-'${MY_TAG_NUMBER}'",\
                      "body": "**Changes:**\\n\\n'${MY_RELEASE_NOTES}'\\n**'${EXT_REPO}' Changes:**\\n\\n' > start
               printf '","draft": false,"prerelease": false}' >> releasebody.json
               paste -d'\\0' start releasebody.json > releasebody.json.done
